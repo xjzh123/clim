@@ -160,13 +160,17 @@ var path = Path(pathRaw)
 |-------------------------------|------|--------|--------|--------|
 | Directly assign to variables  | T    | T      | F      | F      |
 | Generated Code Simplicity     | ++   | +      | F      | F      |
-| Flexibility                   | +    | -[^1]  | +      | ++     |
-| Custom Param name[^2]         | T    | F      | /      | F      |
+| Flexibility                   | +    | -      | +      | ++     |
+| Custom Param name[^1]         | T    | F      | /      | F      |
 | User defined hook             | T    | F      | F      | T      |
 | Generated CLI Help            | F    | T      | T      | T      |
-| Advanced features[^3]         | F    | F      | T      | T      |
+| Advanced features[^2]         | F    | F      | T      | T      |
 
 Clim is inspired by [cliche](https://github.com/juancarlospaco/cliche), and created in order to remove its drawbacks, but keep its easy to use.
+
+With cliche, you are not allowed to get from mutiple param names for one option, or allow `--name:value` and `--name=value` at the same time. You are also not allowed to get from a param name that is different from the variable name.
+
+Cliche uses `--name=value` for default, which is different from what is used in Nim official documents! (Cliche doesn't support multiple delimiters. However, for the time being custom delimiters are not supported by Clim, only the default value `{':', '='}`.)
 
 Cliche uses no procedures to help its work, it generates what is used, and even compares strings in a low-level way:
 
@@ -203,9 +207,8 @@ for v in commandLineParams():
 
 By contrast, Clim generates graceful, human-readable code, and handles edge cases for you..
 
-[^1]: You are not allowed to get from mutiple param names for one option, or allow `--name:value` and `--name=value` at the same time. You are also not allowed to get from a param name that is different from the variable name. Cliche uses `--name=value` for default, which is different from what is used in Nim official documents!
-[^2]: For example, when you want `-O` to equal to `--optimize`, or `-x` to equal to `--checks`.
-[^3]: Arguments, subcommand, etc.
+[^1]: For example, when you want `-O` to equal to `--optimize`, or `-x` to equal to `--checks`.
+[^2]: Arguments, subcommand, etc.
 
 ## Todo
 
