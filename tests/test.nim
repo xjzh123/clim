@@ -1,21 +1,11 @@
 import os
 import macros
 import strformat
+import json
 
 import clim
 
 echo commandLineParams()
-
-proc undefinedOptionHook(name, part: string) =
-  discard
-
-
-template parseErrorHook(name, value: string, typ: typedesc) =
-  discard
-
-
-macro duplicateOptionHook(name: string) =
-  discard
 
 expandMacros:
 
@@ -23,7 +13,10 @@ expandMacros:
   opt(help, bool, ["--help", "-h"])
   opt(name, string, ["--name"])
   opt(level, int, ["--level"])
+  opt(definitions, seq[string], ["--define", "-d"])
+  opt(config, JsonNode, ["--config"], %*{})
 
   getOpt(commandLineParams())
 
-echo &"{path=}, {help=}, {name=}, {level=}"
+echo &"{path=}, {help=}, {name=}, {level=}, {definitions=}, {config=}"
+

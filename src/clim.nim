@@ -15,6 +15,7 @@ runnableExamples:
 
 import macros
 import macrocache
+import typetraits
 import strutils
 import strformat
 import sequtils
@@ -32,7 +33,7 @@ const
 type ParseAble = string | cstring | bool | SomeInteger | SomeFloat | enum | JsonNode
 
 
-const optionDelimiters = {':', '='}
+type CommandParamTypes = ParseAble | seq[ParseAble]
 
 
 template undefinedOptionHookImpl(name, part: string) =
@@ -63,7 +64,7 @@ macro debugEchoWhenIsMain(x: varargs[untyped]): untyped =
 
 
 proc getParam*(param: string): (string, string, string) =
-  let tmp = param.split(optionDelimiters, 1)
+  let tmp = param.split({':', '='}, 1)
   let
     prefix = tmp[0]
     name = prefix.strip(trailing = false, chars = {'-'})
@@ -74,6 +75,19 @@ proc getParam*(param: string): (string, string, string) =
         tmp[1]
   debugEchoWhenIsMain &"{name=}, {value=}"
   (prefix, name, value)
+
+
+macro parse(value: string, typ: typedesc): untyped =
+  quote do:
+    when `typ` is string:          `value`
+    elif `typ` is cstring:         cstring(`value`)
+    elif `typ` is bool:            parseBool(`value`)
+    elif `typ` is SomeSignedInt:   `typ`parseInt(`value`)
+    elif `typ` is SomeUnSignedInt: `typ`parseUInt(`value`)
+    elif `typ` is SomeFloat:       `typ`parseFloat(`value`)
+    elif `typ` is enum:            parseEnum[`typ`](`value`)
+    elif `typ` is JsonNode:        parseJson(`value`)
+    else: doAssert false
 
 
 macro opt*[T](name: untyped, typ: typedesc[T], params: openArray[string],
@@ -139,7 +153,7 @@ macro getOpt*(src: seq[string]): untyped =
     debugEchoWhenIsMain &"{ident=}, {params.astGenRepr=}, {typ=}, {default.astGenRepr=}"
 
     typeCheck.add quote do:
-      when `typ` isnot ParseAble:
+      when `typ` isnot CommandParamTypes:
         error("Unsupported option type: " & $`typ`)
 
     varSection.add(
@@ -154,21 +168,17 @@ macro getOpt*(src: seq[string]): untyped =
 
     caseBody[^1].add:
       quote do:
-        `identNamesThatIsSet`.add `identName`
-
-        try:
-          `ident` =
-            when `typ` is string:          `value`
-            elif `typ` is cstring:         cstring(`value`)
-            elif `typ` is bool:            parseBool(`value`)
-            elif `typ` is SomeSignedInt:   `typ`parseInt(`value`)
-            elif `typ` is SomeUnSignedInt: `typ`parseUInt(`value`)
-            elif `typ` is SomeFloat:       `typ`parseFloat(`value`)
-            elif `typ` is enum:            parseEnum[`typ`](`value`)
-            elif `typ` is JsonNode:        parseJson(`value`)
-            else: doAssert false # This can't happen, because typ is already checked in compiletime with a static block.
-        except ValueError:
-          parseErrorHookImpl(`identName`, `value`, typeof `typ`)
+        when `typ` is ParseAble:
+          try:
+            `identNamesThatIsSet`.add `identName`
+            `ident` = parse(`value`, `typ`)
+          except ValueError:
+            parseErrorHookImpl(`identName`, `value`, typeof(`typ`))
+        elif `typ` is seq[ParseAble]:
+          try:
+            `ident`.add parse(`value`, `typ`.genericParams.get(0))
+          except ValueError:
+            parseErrorHookImpl(`identName`, `value`, typeof(`typ`.genericParams.get(0)))
 
   caseBody.add nnkElse.newTree(
     quote do:

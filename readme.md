@@ -13,10 +13,12 @@ opt(path, string, ["--path", "-p"], ".") # Default value is "."
 opt(help, bool, ["--help", "-h"])
 opt(name, string, ["--name"])
 opt(level, int, ["--level"])
+opt(definitions, seq[string], ["--define", "-d"])
+opt(config, JsonNode, ["--config"], %*{})
 
 getOpt(commandLineParams())
 
-echo &"{path=}, {help=}, {name=}, {level=}"
+echo &"{path=}, {help=}, {name=}, {level=}, {definitions=}"
 ```
 
 Expands roughly to:
@@ -38,6 +40,8 @@ var
   help: bool
   name: string
   level: int
+  definitions: seq[string]
+  config: JsonNode = newJObject()
 let src: seq[string] = commandLineParams()
 for part in src:
   let (prefix, name, value) = getParam(part)
@@ -70,6 +74,19 @@ for part in src:
     except ValueError:
       echo ["Warning: Option \"", "level", "\" is set to \"", value,
             "\" but can not be parsed to \"", "int", "\"."]
+  of "--define", "-d":
+    try:
+      definitions.add(value)
+    except ValueError:
+      echo ["Warning: Option \"", "definitions", "\" is set to \"", value,
+            "\" but can not be parsed to \"", "string", "\"."]
+  of "--config":
+    try:
+      add(identNamesThatIsSet, "config")
+      config = parseJson(value)
+    except ValueError:
+      echo ["Warning: Option \"", "config", "\" is set to \"", value,
+            "\" but can not be parsed to \"", "JsonNode", "\"."]
   else:
     echo ["Warning: Option \"", name, "\" is not defined, \"", part,
           "\" is ignored."]
@@ -84,7 +101,7 @@ if len(identNamesThatIsSet) != len(deduplicated):
 
 Yes! As you can see, the generated code is *very* clear and simple. And it handles parse error, duplicated options and undefined options for you.
 
-`opt` registers a variable that is bound to some command parameters. `getOpt` parses the given `seq[string]` and assigns to the varaibles. So, in one program you can only have one set of parameters. You **can't** do so:
+`opt` registers a variable that is bound to some command parameters. `getOpt` parses the given `seq[string]` and assigns option values to the varaibles. So, in one program you can only have one set of parameters. You **can't** do so:
 
 ```nim
 block:
@@ -95,6 +112,8 @@ block:
   opt(foo, int, ["--foo"])
   getOpt(@["--foo:1"])
 ```
+
+Although Clim supports very simple CLI features, there is support for containers of options: `seq[ParseAble]`. This allows you to implement things like Nim compiler's `--define` option. In the example above, `./test -d:foo -d:bar` will let `definitions` to be `@["foo", "bar"]`.
 
 ## Hooks
 
@@ -134,25 +153,35 @@ expandMacros:
 echo &"{path=}, {help=}, {name=}, {level=}"
 ```
 
+**Note:** Due to implemention of strformat, you can't use strformat to format template parameters here.
+
 ## Parsing
 
 ```nim
 type ParseAble = string | cstring | bool | SomeInteger | SomeFloat | enum | JsonNode
 ```
 
-Clim provides a rather small set of types that can be parsed from CLI options, because it is reasonable to write code yourself to parse rare types in your own way. This also works for files or paths.
+Clim provides a rather small set of types that can be parsed from CLI options, because it is reasonable and natural to write code yourself to parse special types in your own way. This also works for files or paths.
 
 For example, you can do:
 
 ```nim
 import paths
 
-opt(pathRaw, string, ["--path", "-p"], ".")
+opt(pathString, string, ["--path", "-p"], ".")
 
 getOpt(commandLineParams())
 
-var path = Path(pathRaw)
+var path = Path(pathString)
 ```
+
+Clim supports JSON options, but it is not very sweet to write them in commands, you need to write like `--config:"{\"key\": \"value\"}"` or `--config:"{""key"": ""value""}"` to escape quotation marks.
+
+## Internal
+
+Clim uses procedure `getparam` to parse parameters. It works very naturally, returns `(string, string, string)`. `--name:value` will return `("--name", "name", "value")`. `--name` will return `("--name", "name", "true")`.
+
+Clim generates human readable code with very simple logic. If Clim can't fulfill your needs but you can implement them by editing clim itself (e.g. Customize parsing), and you don't want to learn another option parser library, you can use `expandMacros` to see the generated code and start from it to write your own code. With good helper functions, you mat not need a option parser library.
 
 ## Comparison
 
@@ -205,7 +234,7 @@ for v in commandLineParams():
 
 (From cliche repo)
 
-By contrast, Clim generates graceful, human-readable code, and handles edge cases for you..
+By contrast, Clim generates graceful, human-readable code, and handles edge cases for you.
 
 [^1]: For example, when you want `-O` to equal to `--optimize`, or `-x` to equal to `--checks`.
 [^2]: Arguments, subcommand, etc.
