@@ -94,7 +94,7 @@ for part in src:
       add(identNamesThatIsSet, "config")
     except ValueError:
       echo ["Warning: Option \"", "config", "\" is set to \"", value,
-            "\" but can not be parsed to \"", "JsonNode", "\"."]\
+            "\" but can not be parsed to \"", "JsonNode", "\"."]
   of "--output", "-o":
     try:
       output = some(value)
