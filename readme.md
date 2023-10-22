@@ -34,6 +34,12 @@ static :
     error("Unsupported option type: " & $string)
   when int isnot CommandParamTypes:
     error("Unsupported option type: " & $int)
+  when seq[string] isnot CommandParamTypes:
+    error("Unsupported option type: " & $seq[string])
+  when JsonNode isnot CommandParamTypes:
+    error("Unsupported option type: " & $JsonNode)
+  when Option[string] isnot CommandParamTypes:
+    error("Unsupported option type: " & $Option[string])
 
 var identNamesThatIsSet: seq[string]
 var
@@ -164,7 +170,7 @@ echo &"{path=}, {help=}, {name=}, {level=}"
 
 **Note:** Due to implemention of strformat, you can't use strformat to format template parameters here.
 
-## Parsing
+## Types for options
 
 ```nim
 type ParseAble = string | cstring | bool | SomeInteger | SomeFloat | enum | JsonNode

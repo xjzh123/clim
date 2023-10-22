@@ -108,7 +108,7 @@ macro opt*[T](name: untyped, typ: typedesc[T], params: openArray[
 
 
 macro getOpt*(src: seq[string]): untyped =
-  result = nnkStmtList.newTree()
+  result = nnkStmtList.newNimNode()
 
   result.add nnkStaticStmt.newTree(nnkStmtList.newTree())
 
