@@ -1,16 +1,8 @@
 import os
 import macros
-import strformat
 
 import clim
 
-echo commandLineParams()
+opt(foo, BackwardsIndex, ["--foo"])
 
-expandMacros:
-
-  opt(foo, BackwardsIndex, ["--foo"])
-
-  getOpt(commandLineParams())
-
-echo &"{foo=}"
-
+doAssert not compiles(getOpt(commandLineParams()))
