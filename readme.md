@@ -14,24 +14,25 @@ opt(help, bool, ["--help", "-h"])
 opt(name, string, ["--name"])
 opt(level, int, ["--level"])
 opt(definitions, seq[string], ["--define", "-d"])
-opt(config, JsonNode, ["--config"], %*{})
+opt(config, JsonNode, ["--config"], %*{}) # Must provide default for JsonNode
+opt(output, Option[string], ["--output", "-o"])
 
 getOpt(commandLineParams())
 
-echo &"{path=}, {help=}, {name=}, {level=}, {definitions=}"
+echo &"{path=}, {help=}, {name=}, {level=}, {definitions=}, {config=}, {output=}"
 ```
 
 Expands roughly to:
 
 ```nim
 static :
-  when string isnot ParseAble:
+  when string isnot CommandParamTypes:
     error("Unsupported option type: " & $string)
-  when bool isnot ParseAble:
+  when bool isnot CommandParamTypes:
     error("Unsupported option type: " & $bool)
-  when string isnot ParseAble:
+  when string isnot CommandParamTypes:
     error("Unsupported option type: " & $string)
-  when int isnot ParseAble:
+  when int isnot CommandParamTypes:
     error("Unsupported option type: " & $int)
 
 var identNamesThatIsSet: seq[string]
@@ -42,35 +43,36 @@ var
   level: int
   definitions: seq[string]
   config: JsonNode = newJObject()
+  output: Option[string]
 let src: seq[string] = commandLineParams()
 for part in src:
   let (prefix, name, value) = getParam(part)
   case prefix
   of "--path", "-p":
-    add(identNamesThatIsSet, "path")
     try:
       path = value
+      add(identNamesThatIsSet, "path")
     except ValueError:
       echo ["Warning: Option \"", "path", "\" is set to \"", value,
             "\" but can not be parsed to \"", "string", "\"."]
   of "--help", "-h":
-    add(identNamesThatIsSet, "help")
     try:
       help = parseBool(value)
+      add(identNamesThatIsSet, "help")
     except ValueError:
       echo ["Warning: Option \"", "help", "\" is set to \"", value,
             "\" but can not be parsed to \"", "bool", "\"."]
   of "--name":
-    add(identNamesThatIsSet, "name")
     try:
       name = value
+      add(identNamesThatIsSet, "name")
     except ValueError:
       echo ["Warning: Option \"", "name", "\" is set to \"", value,
             "\" but can not be parsed to \"", "string", "\"."]
   of "--level":
-    add(identNamesThatIsSet, "level")
     try:
       level = int(parseInt(value))
+      add(identNamesThatIsSet, "level")
     except ValueError:
       echo ["Warning: Option \"", "level", "\" is set to \"", value,
             "\" but can not be parsed to \"", "int", "\"."]
@@ -82,11 +84,18 @@ for part in src:
             "\" but can not be parsed to \"", "string", "\"."]
   of "--config":
     try:
-      add(identNamesThatIsSet, "config")
       config = parseJson(value)
+      add(identNamesThatIsSet, "config")
     except ValueError:
       echo ["Warning: Option \"", "config", "\" is set to \"", value,
-            "\" but can not be parsed to \"", "JsonNode", "\"."]
+            "\" but can not be parsed to \"", "JsonNode", "\"."]\
+  of "--output", "-o":
+    try:
+      output = some(value)
+      add(identNamesThatIsSet, "output")
+    except ValueError:
+      echo ["Warning: Option \"", "output", "\" is set to \"", value,
+            "\" but can not be parsed to \"", "string", "\"."]
   else:
     echo ["Warning: Option \"", name, "\" is not defined, \"", part,
           "\" is ignored."]
@@ -159,6 +168,8 @@ echo &"{path=}, {help=}, {name=}, {level=}"
 
 ```nim
 type ParseAble = string | cstring | bool | SomeInteger | SomeFloat | enum | JsonNode
+
+type CommandParamTypes = ParseAble | seq[ParseAble] | Option[ParseAble]
 ```
 
 Clim provides a rather small set of types that can be parsed from CLI options, because it is reasonable and natural to write code yourself to parse special types in your own way. This also works for files or paths.
@@ -176,6 +187,8 @@ var path = Path(pathString)
 ```
 
 Clim supports JSON options, but it is not very sweet to write them in commands, you need to write like `--config:"{\"key\": \"value\"}"` or `--config:"{""key"": ""value""}"` to escape quotation marks.
+
+Clim supports option types: `Option[ParseAble]`.
 
 ## Internal
 

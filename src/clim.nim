@@ -21,6 +21,7 @@ import strformat
 import sequtils
 import algorithm
 import json
+import options
 
 
 const
@@ -33,7 +34,7 @@ const
 type ParseAble = string | cstring | bool | SomeInteger | SomeFloat | enum | JsonNode
 
 
-type CommandParamTypes = ParseAble | seq[ParseAble]
+type CommandParamTypes = ParseAble | seq[ParseAble] | Option[ParseAble]
 
 
 template undefinedOptionHookImpl(name, part: string) =
@@ -170,13 +171,19 @@ macro getOpt*(src: seq[string]): untyped =
       quote do:
         when `typ` is ParseAble:
           try:
-            `identNamesThatIsSet`.add `identName`
             `ident` = parse(`value`, `typ`)
+            `identNamesThatIsSet`.add `identName`
           except ValueError:
             parseErrorHookImpl(`identName`, `value`, typeof(`typ`))
         elif `typ` is seq[ParseAble]:
           try:
             `ident`.add parse(`value`, `typ`.genericParams.get(0))
+          except ValueError:
+            parseErrorHookImpl(`identName`, `value`, typeof(`typ`.genericParams.get(0)))
+        elif `typ` is Option[ParseAble]:
+          try:
+            `ident` = some(parse(`value`, `typ`.genericParams.get(0)))
+            `identNamesThatIsSet`.add `identName`
           except ValueError:
             parseErrorHookImpl(`identName`, `value`, typeof(`typ`.genericParams.get(0)))
 
